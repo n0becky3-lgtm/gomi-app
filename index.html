@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ゴミ通知">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>ゴミ収集通知</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --primary:#FF6B00;--primary-dark:#E55A00;--bg:#f7f7f7;--card:#fff;
+  --text:#222;--sub:#888;--radius:16px;
+  --safe-top:env(safe-area-inset-top,0px);
+  --safe-bottom:env(safe-area-inset-bottom,0px);
+}
+html,body{height:100%;font-family:-apple-system,"Hiragino Sans",sans-serif;background:var(--bg);color:var(--text)}
+body{max-width:430px;margin:0 auto;position:relative;overflow-x:hidden}
+
+.header{
+  background:var(--primary);color:#fff;
+  padding:calc(14px + var(--safe-top)) 20px 14px;
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:100;
+}
+.header h1{font-size:20px;font-weight:700}
+.header-btn{background:rgba(255,255,255,0.25);border:none;color:#fff;border-radius:8px;padding:6px 14px;font-size:14px;cursor:pointer}
+
+.screen{display:none;min-height:100vh;padding-bottom:calc(20px + var(--safe-bottom))}
+.screen.active{display:block}
+
+.date-banner{
+  background:var(--primary);color:#fff;
+  padding:20px 20px 32px;text-align:center;
+}
+.date-banner .date{font-size:28px;font-weight:700}
+.date-banner .day{font-size:16px;opacity:0.85;margin-top:4px}
+
+.section{padding:16px 16px 4px;font-size:13px;color:var(--sub);font-weight:600;letter-spacing:.05em}
+
+.no-collect{
+  margin:16px;background:var(--card);border-radius:var(--radius);
+  padding:32px 20px;text-align:center;
+}
+.no-collect .emoji{font-size:56px;margin-bottom:12px}
+.no-collect p{color:var(--sub);font-size:15px}
+
+.gomi-card{
+  margin:8px 16px;background:var(--card);border-radius:var(--radius);
+  padding:18px 20px;display:flex;align-items:center;gap:16px;
+  box-shadow:0 2px 8px rgba(0,0,0,.06);
+  border-left:6px solid var(--c,#ccc);
+}
+.gomi-card .emoji{font-size:40px;line-height:1}
+.gomi-card .name{font-size:18px;font-weight:700}
+.gomi-card .days{font-size:13px;color:var(--sub);margin-top:3px}
+
+.tomorrow-card{
+  margin:8px 16px;background:var(--card);border-radius:var(--radius);
+  padding:14px 16px;display:flex;align-items:center;gap:12px;
+  box-shadow:0 1px 4px rgba(0,0,0,.05);opacity:.75;
+}
+.tomorrow-card .emoji{font-size:28px}
+.tomorrow-card .name{font-size:15px;font-weight:600}
+
+.settings-section{padding:20px 16px 4px;font-size:13px;color:var(--sub);font-weight:600;letter-spacing:.05em}
+.area-input{
+  margin:8px 16px;background:var(--card);border-radius:var(--radius);
+  padding:14px 16px;box-shadow:0 1px 4px rgba(0,0,0,.05);
+}
+.area-input label{font-size:13px;color:var(--sub);display:block;margin-bottom:6px}
+.area-input input{width:100%;border:none;font-size:16px;outline:none;background:transparent;color:var(--text)}
+
+.type-card{
+  margin:8px 16px;background:var(--card);border-radius:var(--radius);
+  padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.05);
+  border-left:5px solid var(--c,#ccc);
+}
+.type-card-header{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.type-card .emoji{font-size:28px}
+.type-card .type-name{font-size:16px;font-weight:700;flex:1}
+.type-card .del-btn{background:none;border:none;color:#bbb;font-size:20px;cursor:pointer;padding:0 4px}
+.type-card .name-input{
+  width:100%;border:1px solid #eee;border-radius:8px;
+  padding:8px 12px;font-size:15px;margin-bottom:10px;outline:none;
+}
+.type-card .name-input:focus{border-color:var(--primary)}
+
+.day-selector{display:flex;gap:6px;flex-wrap:wrap}
+.day-btn{
+  width:36px;height:36px;border-radius:50%;border:2px solid #eee;
+  background:#f0f0f0;font-size:13px;font-weight:600;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;transition:all .15s;
+}
+.day-btn.selected{background:var(--primary);border-color:var(--primary);color:#fff}
+
+.emoji-picker{
+  display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;
+}
+.emoji-opt{
+  font-size:24px;padding:4px;border-radius:8px;cursor:pointer;
+  border:2px solid transparent;transition:all .1s;
+}
+.emoji-opt.selected{border-color:var(--primary);background:#fff3eb}
+
+.add-type-btn{
+  margin:12px 16px;padding:14px;width:calc(100% - 32px);
+  background:var(--card);border:2px dashed #ddd;border-radius:var(--radius);
+  font-size:15px;color:var(--sub);cursor:pointer;text-align:center;
+}
+.add-type-btn:hover{border-color:var(--primary);color:var(--primary)}
+
+.save-btn{
+  margin:16px;padding:16px;width:calc(100% - 32px);
+  background:var(--primary);border:none;border-radius:var(--radius);
+  color:#fff;font-size:17px;font-weight:700;cursor:pointer;
+  box-shadow:0 4px 12px rgba(255,107,0,.3);
+}
+.save-btn:active{background:var(--primary-dark)}
+
+.guide-hero{
+  background:var(--primary);color:#fff;padding:40px 24px 32px;text-align:center;
+}
+.guide-hero .icon{font-size:72px;margin-bottom:12px}
+.guide-hero h2{font-size:22px;font-weight:700}
+.guide-hero p{font-size:14px;opacity:.85;margin-top:8px}
+
+.guide-step{
+  margin:8px 16px;background:var(--card);border-radius:var(--radius);
+  padding:18px;box-shadow:0 1px 4px rgba(0,0,0,.06);
+  display:flex;gap:14px;align-items:flex-start;
+}
+.step-num{
+  min-width:32px;height:32px;border-radius:50%;background:var(--primary);
+  color:#fff;font-weight:700;font-size:15px;display:flex;align-items:center;justify-content:center;
+}
+.step-body .step-title{font-size:15px;font-weight:700;margin-bottom:4px}
+.step-body .step-desc{font-size:13px;color:var(--sub);line-height:1.6}
+.step-body code{background:#f0f0f0;padding:2px 6px;border-radius:4px;font-size:12px}
+
+.tabbar{
+  position:fixed;bottom:0;left:50%;transform:translateX(-50%);
+  width:100%;max-width:430px;
+  background:#fff;border-top:1px solid #eee;
+  display:flex;
+  padding-bottom:var(--safe-bottom);
+  z-index:200;
+}
+.tab{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:10px 0;cursor:pointer;gap:3px;border:none;background:none;
+  color:#aaa;font-size:10px;font-weight:600;
+}
+.tab .tab-icon{font-size:24px}
+.tab.active{color:var(--primary)}
+
+body{padding-bottom:calc(64px + var(--safe-bottom))}
+
+.toast{
+  position:fixed;bottom:calc(80px + var(--safe-bottom));left:50%;transform:translateX(-50%);
+  background:#333;color:#fff;padding:10px 24px;border-radius:24px;
+  font-size:14px;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;z-index:999;
+}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+
+<div class="screen active" id="screen-today">
+  <div class="header">
+    <h1>🗑️ ゴミ通知</h1>
+  </div>
+  <div class="date-banner">
+    <div class="date" id="today-date"></div>
+    <div class="day" id="today-day"></div>
+  </div>
+  <div id="today-content"></div>
+  <div class="section" id="tomorrow-section" style="display:none">明日 ▸</div>
+  <div id="tomorrow-content"></div>
+</div>
+
+<div class="screen" id="screen-settings">
+  <div class="header">
+    <h1>⚙️ ゴミの設定</h1>
+    <button class="header-btn" onclick="saveSettings()">保存</button>
+  </div>
+  <div class="settings-section">地域名（任意）</div>
+  <div class="area-input">
+    <label>例：藤沢市8ブロック</label>
+    <input type="text" id="area-name" placeholder="地域・丁目など" maxlength="30">
+  </div>
+  <div class="settings-section" style="margin-top:8px">ゴミの種類と収集曜日</div>
+  <div id="types-list"></div>
+  <button class="add-type-btn" onclick="addType()">＋ ゴミの種類を追加</button>
+  <button class="save-btn" onclick="saveSettings()">💾 設定を保存</button>
+</div>
+
+<div class="screen" id="screen-notify">
+  <div class="header">
+    <h1>🔔 通知の設定</h1>
+  </div>
+  <div class="guide-hero">
+    <div class="icon">⏰</div>
+    <h2>毎朝7時に自動でお知らせ</h2>
+    <p>iPhoneのショートカット機能を使うと<br>毎朝自動でアプリが開きます</p>
+  </div>
+  <div class="section" style="padding-top:20px">設定手順（1回だけ）</div>
+
+  <div class="guide-step">
+    <div class="step-num">1</div>
+    <div class="step-body">
+      <div class="step-title">ホーム画面に追加する</div>
+      <div class="step-desc">
+        Safariでこのページを開き、<br>
+        下の共有ボタン（□↑）をタップ<br>
+        →「ホーム画面に追加」を選ぶ
+      </div>
+    </div>
+  </div>
+
+  <div class="guide-step">
+    <div class="step-num">2</div>
+    <div class="step-body">
+      <div class="step-title">ショートカットアプリを開く</div>
+      <div class="step-desc">
+        iPhoneのショートカットアプリを開き<br>
+        「オートメーション」タブを選ぶ
+      </div>
+    </div>
+  </div>
+
+  <div class="guide-step">
+    <div class="step-num">3</div>
+    <div class="step-body">
+      <div class="step-title">新規オートメーションを作成</div>
+      <div class="step-desc">
+        「＋」→「時刻」を選び<br>
+        毎日 <code>午前7:00</code> に設定する<br>
+        アクション：「URLを開く」→このアプリのURLを貼る
+      </div>
+    </div>
+  </div>
+
+  <div class="guide-step">
+    <div class="step-num">4</div>
+    <div class="step-body">
+      <div class="step-title">URLをコピーする</div>
+      <div class="step-desc" style="word-break:break-all">
+        <span id="app-url" style="color:var(--primary);font-weight:600"></span><br><br>
+        <button onclick="copyUrl()" style="background:var(--primary);color:#fff;border:none;border-radius:8px;padding:8px 20px;font-size:14px;cursor:pointer">URLをコピー</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="guide-step">
+    <div class="step-num">5</div>
+    <div class="step-body">
+      <div class="step-title">完了！</div>
+      <div class="step-desc">
+        毎朝7時になると自動でアプリが開き<br>今日のゴミが表示されます 🎉
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="tabbar">
+  <button class="tab active" onclick="showTab('today')" id="tab-today">
+    <span class="tab-icon">🏠</span>今日
+  </button>
+  <button class="tab" onclick="showTab('settings')" id="tab-settings">
+    <span class="tab-icon">⚙️</span>設定
+  </button>
+  <button class="tab" onclick="showTab('notify')" id="tab-notify">
+    <span class="tab-icon">🔔</span>通知
+  </button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const KEY = 'gomi_schedule_v1';
+const DAYS = ['日','月','火','水','木','金','土'];
+const EMOJIS = ['🔥','♻️','🪣','📦','🥫','🍶','🗑️','🌿','📰','💡','🧴','🧹'];
+const COLORS = ['#FF6B00','#2196F3','#9C27B0','#4CAF50','#FF9800','#00BCD4','#F44336','#795548'];
+
+const DEFAULT_TYPES = [
+  {id:'1',name:'燃えるゴミ',emoji:'🔥',color:'#FF6B00',days:[]},
+  {id:'2',name:'プラスチック',emoji:'♻️',color:'#2196F3',days:[]},
+  {id:'3',name:'不燃ごみ',emoji:'🪣',color:'#9C27B0',days:[]},
+  {id:'4',name:'その他資源',emoji:'📦',color:'#4CAF50',days:[]},
+  {id:'5',name:'カン・なべ類',emoji:'🥫',color:'#FF9800',days:[]},
+  {id:'6',name:'ペットボトル',emoji:'🍶',color:'#00BCD4',days:[]},
+];
+
+function load(){
+  try{ return JSON.parse(localStorage.getItem(KEY)) || {types:DEFAULT_TYPES,area:''} }
+  catch{ return {types:DEFAULT_TYPES,area:''} }
+}
+function save(d){ localStorage.setItem(KEY,JSON.stringify(d)) }
+
+let data = load();
+
+function renderToday(){
+  const now = new Date();
+  const todayIdx = now.getDay();
+  const tomorrowIdx = (todayIdx+1)%7;
+
+  document.getElementById('today-date').textContent =
+    `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日`;
+  document.getElementById('today-day').textContent =
+    (data.area ? data.area + '\u3000' : '') + `${DAYS[todayIdx]}曜日`;
+
+  const todayTypes = data.types.filter(t=>t.days.includes(todayIdx));
+  const tomorrowTypes = data.types.filter(t=>t.days.includes(tomorrowIdx));
+  const tc = document.getElementById('today-content');
+  const tom = document.getElementById('tomorrow-content');
+  const tomSec = document.getElementById('tomorrow-section');
+
+  if(todayTypes.length===0){
+    tc.innerHTML=`<div class="no-collect">
+      <div class="emoji">✅</div>
+      <p>今日はゴミ収集がありません<br>ゆっくりどうぞ。</p>
+    </div>`;
+  } else {
+    tc.innerHTML = todayTypes.map(t=>`
+      <div class="gomi-card" style="--c:${t.color}">
+        <div class="emoji">${t.emoji}</div>
+        <div class="info">
+          <div class="name">${t.name}</div>
+          <div class="days">今日（${DAYS[todayIdx]}曜日）収集日</div>
+        </div>
+      </div>`).join('');
+  }
+
+  if(tomorrowTypes.length>0){
+    tomSec.style.display='block';
+    tom.innerHTML = tomorrowTypes.map(t=>`
+      <div class="tomorrow-card">
+        <div class="emoji">${t.emoji}</div>
+        <div class="name">${t.name}</div>
+      </div>`).join('');
+  } else {
+    tomSec.style.display='none';
+    tom.innerHTML='';
+  }
+}
+
+function renderSettings(){
+  document.getElementById('area-name').value = data.area || '';
+  const list = document.getElementById('types-list');
+  list.innerHTML = data.types.map((t,i)=>typeCardHTML(t,i)).join('');
+}
+
+function typeCardHTML(t,i){
+  const dayBtns = DAYS.map((d,di)=>`
+    <button class="day-btn ${t.days.includes(di)?'selected':''}"
+      onclick="toggleDay(${i},${di})">${d}</button>`).join('');
+  const emojiOpts = EMOJIS.map(e=>`
+    <span class="emoji-opt ${t.emoji===e?'selected':''}"
+      onclick="setEmoji(${i},'${e}')">${e}</span>`).join('');
+  return `<div class="type-card" style="--c:${t.color}" id="type-card-${i}">
+    <div class="type-card-header">
+      <span class="emoji">${t.emoji}</span>
+      <span class="type-name">${t.name}</span>
+      <button class="del-btn" onclick="deleteType(${i})">✕</button>
+    </div>
+    <div class="emoji-picker">${emojiOpts}</div>
+    <input class="name-input" type="text" value="${t.name}" maxlength="15"
+      oninput="updateName(${i},this.value)" placeholder="ゴミの種類名">
+    <div class="day-selector">${dayBtns}</div>
+  </div>`;
+}
+
+function toggleDay(typeIdx,dayIdx){
+  const t = data.types[typeIdx];
+  if(t.days.includes(dayIdx)) t.days = t.days.filter(d=>d!==dayIdx);
+  else t.days.push(dayIdx);
+  renderSettings();
+}
+function updateName(i,v){ data.types[i].name=v }
+function setEmoji(i,e){ data.types[i].emoji=e; renderSettings() }
+function deleteType(i){
+  if(!confirm('「'+data.types[i].name+'」を削除しますか？')) return;
+  data.types.splice(i,1);
+  renderSettings();
+}
+function addType(){
+  const idx = data.types.length % COLORS.length;
+  data.types.push({id:Date.now()+'',name:'新しいゴミ',emoji:'🗑️',color:COLORS[idx],days:[]});
+  renderSettings();
+  setTimeout(()=>{
+    const cards = document.querySelectorAll('.type-card');
+    cards[cards.length-1].scrollIntoView({behavior:'smooth'});
+  },100);
+}
+function saveSettings(){
+  data.area = document.getElementById('area-name').value.trim();
+  document.querySelectorAll('.name-input').forEach((el,i)=>{
+    if(data.types[i]) data.types[i].name = el.value.trim() || '名称なし';
+  });
+  save(data);
+  showToast('✅ 設定を保存しました');
+  renderToday();
+}
+
+function renderNotify(){
+  document.getElementById('app-url').textContent = location.href.split('?')[0];
+}
+function copyUrl(){
+  const url = location.href.split('?')[0];
+  navigator.clipboard.writeText(url).then(()=>showToast('URLをコピーしました'));
+}
+
+function showTab(name){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('screen-'+name).classList.add('active');
+  document.getElementById('tab-'+name).classList.add('active');
+  if(name==='today') renderToday();
+  if(name==='settings') renderSettings();
+  if(name==='notify') renderNotify();
+}
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('./sw.js').catch(()=>{});
+}
+
+renderToday();
+</script>
+</body>
+</html>
