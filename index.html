@@ -53,10 +53,13 @@ body{max-width:430px;margin:0 auto;position:relative;overflow-x:hidden}
   padding:18px 20px;display:flex;align-items:center;gap:16px;
   box-shadow:0 2px 8px rgba(0,0,0,.06);
   border-left:6px solid var(--c,#ccc);
+  flex-wrap:wrap;
 }
 .gomi-card .emoji{font-size:40px;line-height:1}
 .gomi-card .name{font-size:18px;font-weight:700}
 .gomi-card .days{font-size:13px;color:var(--sub);margin-top:3px}
+.gomi-card .info{flex:1}
+.gomi-illust{width:100%;border-radius:10px;margin-top:10px;display:block;}
 
 .tomorrow-card{
   margin:8px 16px;background:var(--card);border-radius:var(--radius);
@@ -286,6 +289,15 @@ const DAYS = ['日','月','火','水','木','金','土'];
 const EMOJIS = ['🔥','♻️','🪣','📦','🥫','🍶','🗑️','🌿','📰','💡','🧴','🧹'];
 const COLORS = ['#FF6B00','#2196F3','#9C27B0','#4CAF50','#FF9800','#00BCD4','#F44336','#795548'];
 
+const ILLUSTRATIONS = {
+  '🔥': 'images/moeru.jpg',
+  '♻️': 'images/plastic.jpg',
+  '🪣': 'images/funen.jpg',
+  '📦': 'images/shigen.jpg',
+  '🥫': 'images/kan.jpg',
+  '🍶': 'images/pet.jpg',
+};
+
 const DEFAULT_TYPES = [
   {id:'1',name:'燃えるゴミ',emoji:'🔥',color:'#FF6B00',days:[]},
   {id:'2',name:'プラスチック',emoji:'♻️',color:'#2196F3',days:[]},
@@ -325,14 +337,18 @@ function renderToday(){
       <p>今日はゴミ収集がありません<br>ゆっくりどうぞ。</p>
     </div>`;
   } else {
-    tc.innerHTML = todayTypes.map(t=>`
+    tc.innerHTML = todayTypes.map(t=>{
+      const illust = ILLUSTRATIONS[t.emoji] ? `<img class="gomi-illust" src="${ILLUSTRATIONS[t.emoji]}" alt="${t.name}のイラスト">` : '';
+      return `
       <div class="gomi-card" style="--c:${t.color}">
         <div class="emoji">${t.emoji}</div>
         <div class="info">
           <div class="name">${t.name}</div>
           <div class="days">今日（${DAYS[todayIdx]}曜日）収集日</div>
         </div>
-      </div>`).join('');
+        ${illust}
+      </div>`;
+    }).join('');
   }
 
   if(tomorrowTypes.length>0){
@@ -356,10 +372,10 @@ function renderSettings(){
 
 function typeCardHTML(t,i){
   const dayBtns = DAYS.map((d,di)=>`
-    <button class="day-btn ${t.days.includes(di)?'selected':''}"
+    <button class="day-btn ${t.days.includes(di)?'selected':'"}
       onclick="toggleDay(${i},${di})">${d}</button>`).join('');
   const emojiOpts = EMOJIS.map(e=>`
-    <span class="emoji-opt ${t.emoji===e?'selected':''}"
+    <span class="emoji-opt ${t.emoji===e?'selected':'"}
       onclick="setEmoji(${i},'${e}')">${e}</span>`).join('');
   return `<div class="type-card" style="--c:${t.color}" id="type-card-${i}">
     <div class="type-card-header">
